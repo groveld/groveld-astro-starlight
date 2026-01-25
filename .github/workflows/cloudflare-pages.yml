@@ -44,7 +44,7 @@ jobs:
           accountId: ${{ env.CF_ACCOUNT_ID }}
           command: pages deploy dist --project-name=${{ env.CF_PROJECT_NAME }}
 
-  cleanup-deployments:
+  cleanup-old-deployments:
     needs: build-and-deploy
     runs-on: ubuntu-latest
     steps:
