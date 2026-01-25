@@ -25,6 +25,7 @@ env:
   CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
   CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CF_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+  CF_RETENTION_SECONDS: ${{ vars.CLOUDFLARE_RETENTION_SECONDS }}
 
 jobs:
   build-and-deploy:
@@ -33,7 +34,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Install and build with Astro
+      - name: Install, build and upload artifact
         uses: withastro/action@v5
 
       - name: Deploy to Cloudflare Pages
@@ -42,3 +43,65 @@ jobs:
           apiToken: ${{ env.CF_API_TOKEN }}
           accountId: ${{ env.CF_ACCOUNT_ID }}
           command: pages deploy dist --project-name=${{ env.CF_PROJECT_NAME }}
+
+  cleanup-deployments:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup old deployments
+        run: |
+          set -euo pipefail
+
+          echo "🧹 Starting deployment cleanup for project: ${CF_PROJECT_NAME}"
+          echo "⏰ Retention period: ${CF_RETENTION_SECONDS} seconds"
+
+          deployments=$(curl -s -X GET \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT_NAME}/deployments" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json")
+
+          success=$(echo "$deployments" | jq -r '.success')
+          if [[ "$success" != "true" ]]; then
+            echo "Failed to fetch deployments:"
+            echo "$deployments"
+            exit 1
+          fi
+
+          cutoff_epoch=$(($(date +%s) - ${CF_RETENTION_SECONDS}))
+          deleted_count=0
+          kept_count=0
+
+          echo "$deployments" | jq -c '.result[]' | while read -r deployment; do
+            deployment_id=$(echo "$deployment" | jq -r '.id')
+            created_on=$(echo "$deployment" | jq -r '.created_on')
+            deployment_epoch=$(date -d "$created_on" +%s)
+            deployment_status=$(echo "$deployment" | jq -r '.latest_stage.status')
+
+            is_live=$(echo "$deployment" | jq '.aliases | length > 0')
+            is_production=$(echo "$deployment" | jq '.production_environment != null')
+
+            if [[ "$deployment_epoch" -lt "$cutoff_epoch" && \
+                  "$is_live" == "false" && \
+                  "$is_production" == "false" && \
+                  "$deployment_status" == "success" ]]; then
+              echo "Deleting deployment: $deployment_id (created_on: $created_on)"
+              delete_response=$(curl -s -X DELETE \
+                "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT_NAME}/deployments/${deployment_id}" \
+                -H "Authorization: Bearer ${CF_API_TOKEN}" \
+                -H "Content-Type: application/json")
+
+              delete_success=$(echo "$delete_response" | jq -r '.success')
+              if [[ "$delete_success" != "true" ]]; then
+                echo "❌ Failed to delete deployment $deployment_id:"
+                echo "$delete_response"
+              else
+                echo "✅ Successfully deleted deployment $deployment_id"
+                ((deleted_count++))
+              fi
+            else
+              echo "⏳ Keeping deployment: $deployment_id (created_on: $created_on)"
+              ((kept_count++))
+            fi
+          done
+
+          echo "📊 Cleanup summary: Deleted $deleted_count deployments, kept $kept_count deployments"
