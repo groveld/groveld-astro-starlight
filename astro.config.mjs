@@ -15,8 +15,7 @@ export default defineConfig({
         dark: "./src/assets/logo-white.svg",
       },
       editLink: {
-        baseUrl:
-          "https://github.com/groveld/groveld-astro-starlight/edit/main/src/content/docs/",
+        baseUrl: "https://github.com/groveld/groveld-astro-starlight/edit/main",
       },
       social: [
         { icon: "github", label: "GitHub", href: "https://github.com/groveld" },
