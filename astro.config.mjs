@@ -1,18 +1,24 @@
 // @ts-check
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import starlightCatppuccin from "@catppuccin/starlight";
 
 // https://astro.build/config
 export default defineConfig({
   site: "https://www.groveld.com",
   integrations: [
     starlight({
-      lastUpdated: true,
-      pagination: false,
+      plugins: [
+        starlightCatppuccin({
+          dark: { flavor: "macchiato", accent: "sky" },
+          light: { flavor: "latte", accent: "sky" },
+        }),
+      ],
       title: "Groveld",
       logo: {
         light: "./src/assets/logo-red.svg",
         dark: "./src/assets/logo-white.svg",
+        replacesTitle: true,
       },
       editLink: {
         baseUrl: "https://github.com/groveld/groveld-astro-starlight/edit/main",
@@ -26,6 +32,8 @@ export default defineConfig({
           autogenerate: { directory: "guides" },
         },
       ],
+      lastUpdated: true,
+      pagination: false,
     }),
   ],
 });
