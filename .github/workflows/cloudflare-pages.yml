@@ -71,7 +71,8 @@ jobs:
           deleted_count=0
           kept_count=0
 
-          echo "$deployments" | jq -c '.result[]' | while read -r deployment; do
+          # Process deployments using process substitution to avoid subshell
+          while read -r deployment; do
             deployment_id=$(echo "$deployment" | jq -r '.id')
             created_on=$(echo "$deployment" | jq -r '.created_on')
             deployment_epoch=$(date -d "$created_on" +%s)
@@ -96,12 +97,12 @@ jobs:
                 echo "$delete_response"
               else
                 echo "✅ Successfully deleted deployment $deployment_id"
-                ((deleted_count++))
+                deleted_count=$((deleted_count + 1))
               fi
             else
               echo "⏳ Keeping deployment: $deployment_id (created_on: $created_on)"
-              ((kept_count++))
+              kept_count=$((kept_count + 1))
             fi
-          done
+          done < <(echo "$deployments" | jq -c '.result[]')
 
           echo "📊 Cleanup summary: Deleted $deleted_count deployments, kept $kept_count deployments"
