@@ -25,7 +25,6 @@ env:
   CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
   CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CF_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
-  CF_RETENTION_SECONDS: ${{ vars.CLOUDFLARE_RETENTION_SECONDS }}
 
 jobs:
   build-and-deploy:
@@ -46,6 +45,7 @@ jobs:
 
   cleanup-old-deployments:
     needs: build-and-deploy
+    if: success()
     runs-on: ubuntu-latest
     steps:
       - name: Cleanup old deployments
@@ -53,7 +53,7 @@ jobs:
           set -euo pipefail
 
           echo "🧹 Starting deployment cleanup for project: ${CF_PROJECT_NAME}"
-          echo "⏰ Retention period: ${CF_RETENTION_SECONDS} seconds"
+          echo "📋 Strategy: Keep only the latest deployment, remove all others"
 
           deployments=$(curl -s -X GET \
             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT_NAME}/deployments" \
@@ -67,42 +67,55 @@ jobs:
             exit 1
           fi
 
-          cutoff_epoch=$(($(date +%s) - ${CF_RETENTION_SECONDS}))
-          deleted_count=0
-          kept_count=0
+          # Sort deployments by created_on date (newest first) and get all except the first one
+          sorted_deployments=$(echo "$deployments" | jq -c '.result | sort_by(.created_on) | reverse')
+          total_deployments=$(echo "$sorted_deployments" | jq 'length')
 
-          # Process deployments using process substitution to avoid subshell
+          echo "📊 Total deployments found: $total_deployments"
+
+          if [[ "$total_deployments" -le 1 ]]; then
+            echo "✅ Only one or no deployments found. Nothing to clean up."
+            exit 0
+          fi
+
+          # Keep the first (newest) deployment, process the rest for deletion
+          latest_deployment=$(echo "$sorted_deployments" | jq -r '.[0].id')
+          latest_created_on=$(echo "$sorted_deployments" | jq -r '.[0].created_on')
+          echo "🔒 Keeping latest deployment: $latest_deployment (created: $latest_created_on)"
+
+          deleted_count=0
+          skipped_count=0
+
+          # Process all deployments except the first one
           while read -r deployment; do
             deployment_id=$(echo "$deployment" | jq -r '.id')
             created_on=$(echo "$deployment" | jq -r '.created_on')
-            deployment_epoch=$(date -d "$created_on" +%s)
             deployment_status=$(echo "$deployment" | jq -r '.latest_stage.status')
 
             is_live=$(echo "$deployment" | jq '.aliases | length > 0')
             is_production=$(echo "$deployment" | jq '.production_environment != null')
 
-            if [[ "$deployment_epoch" -lt "$cutoff_epoch" && \
-                  "$is_live" == "false" && \
-                  "$is_production" == "false" && \
-                  "$deployment_status" == "success" ]]; then
-              echo "Deleting deployment: $deployment_id (created_on: $created_on)"
-              delete_response=$(curl -s -X DELETE \
-                "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT_NAME}/deployments/${deployment_id}" \
-                -H "Authorization: Bearer ${CF_API_TOKEN}" \
-                -H "Content-Type: application/json")
-
-              delete_success=$(echo "$delete_response" | jq -r '.success')
-              if [[ "$delete_success" != "true" ]]; then
-                echo "❌ Failed to delete deployment $deployment_id:"
-                echo "$delete_response"
-              else
-                echo "✅ Successfully deleted deployment $deployment_id"
-                deleted_count=$((deleted_count + 1))
-              fi
-            else
-              echo "⏳ Keeping deployment: $deployment_id (created_on: $created_on)"
-              kept_count=$((kept_count + 1))
+            # Skip if it's live or production for safety
+            if [[ "$is_live" == "true" || "$is_production" == "true" ]]; then
+              echo "⏭️  Skipping deployment: $deployment_id (live or production)"
+              skipped_count=$((skipped_count + 1))
+              continue
             fi
-          done < <(echo "$deployments" | jq -c '.result[]')
 
-          echo "📊 Cleanup summary: Deleted $deleted_count deployments, kept $kept_count deployments"
+            echo "🗑️  Deleting deployment: $deployment_id (created: $created_on)"
+            delete_response=$(curl -s -X DELETE \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT_NAME}/deployments/${deployment_id}" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" \
+              -H "Content-Type: application/json")
+
+            delete_success=$(echo "$delete_response" | jq -r '.success')
+            if [[ "$delete_success" != "true" ]]; then
+              echo "❌ Failed to delete deployment $deployment_id:"
+              echo "$delete_response"
+            else
+              echo "✅ Successfully deleted deployment $deployment_id"
+              deleted_count=$((deleted_count + 1))
+            fi
+          done < <(echo "$sorted_deployments" | jq -c '.[1:][]')
+
+          echo "📊 Cleanup summary: Deleted $deleted_count deployments, skipped $skipped_count deployments, kept 1 latest deployment"
