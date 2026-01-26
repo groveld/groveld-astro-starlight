@@ -42,7 +42,7 @@ jobs:
         with:
           apiToken: ${{ env.CF_API_TOKEN }}
           accountId: ${{ env.CF_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=${{ env.CF_PROJECT_NAME }} --commit-dirty=true
+          command: pages deploy dist --project-name=${{ env.CF_PROJECT_NAME }} --commit-dirty=true --branch=main --env=production
 
   cleanup-old-deployments:
     needs: build-and-deploy
@@ -109,13 +109,27 @@ jobs:
               -H "Authorization: Bearer ${CF_API_TOKEN}" \
               -H "Content-Type: application/json")
 
-            delete_success=$(echo "$delete_response" | jq -r '.success')
-            if [[ "$delete_success" != "true" ]]; then
-              echo "❌ Failed to delete deployment $deployment_id:"
-              echo "$delete_response"
+            # Check if response is valid JSON before parsing
+            if echo "$delete_response" | jq empty 2>/dev/null; then
+              delete_success=$(echo "$delete_response" | jq -r '.success // false')
+              if [[ "$delete_success" == "true" ]]; then
+                echo "✅ Successfully deleted deployment $deployment_id"
+                deleted_count=$((deleted_count + 1))
+              else
+                echo "❌ Failed to delete deployment $deployment_id (API returned success=false):"
+                echo "$delete_response"
+              fi
             else
-              echo "✅ Successfully deleted deployment $deployment_id"
-              deleted_count=$((deleted_count + 1))
+              # Handle non-JSON or malformed JSON response
+              echo "⚠️  Warning: Invalid JSON response for deployment $deployment_id"
+              echo "Raw response: $delete_response"
+              # Check HTTP status code to determine if deletion might have succeeded
+              if [[ -z "$delete_response" ]] || [[ "$delete_response" == *"204"* ]] || [[ "$delete_response" == *"200"* ]]; then
+                echo "🤞 Assuming deletion succeeded (empty or HTTP success response)"
+                deleted_count=$((deleted_count + 1))
+              else
+                echo "❌ Assuming deletion failed due to unexpected response"
+              fi
             fi
           done < <(echo "$sorted_deployments" | jq -c '.[1:][]')
 
