@@ -11,6 +11,7 @@ on:
       - ".gitattributes"
       - ".gitignore"
       - "README.md"
+      - "LICENSE"
 
 permissions:
   contents: read

@@ -1,0 +1,28 @@
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+*.{cmd,[cC][mM][dD]} text eol=crlf
+*.{bat,[bB][aA][tT]} text eol=crlf
+
+# Define binary files to be excluded from modification
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.flv binary
+*.fla binary
+*.swf binary
+*.gz binary
+*.tar binary
+*.rar binary
+*.zip binary
+*.7z binary
+*.egg binary
+*.ttf binary
+*.eot binary
+*.woff binary
+*.pyc binary
+*.pdf binary
+*.db binary
+*.xz binary

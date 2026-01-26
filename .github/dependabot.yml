@@ -1,0 +1,48 @@
+---
+version: 2
+
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 1
+    groups:
+      actions-deps:
+        patterns:
+          - "*"
+    assignees:
+      - groveld
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 1
+    groups:
+      docker-deps:
+        patterns:
+          - "*"
+    assignees:
+      - groveld
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 1
+    groups:
+      npm-deps:
+        patterns:
+          - "*"
+    assignees:
+      - groveld
