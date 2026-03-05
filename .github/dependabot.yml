@@ -11,7 +11,7 @@ updates:
       timezone: "Europe/Amsterdam"
     open-pull-requests-limit: 1
     groups:
-      actions-deps:
+      actions:
         patterns:
           - "*"
     cooldown:
@@ -28,7 +28,7 @@ updates:
       timezone: "Europe/Amsterdam"
     open-pull-requests-limit: 1
     groups:
-      npm-deps:
+      npm:
         patterns:
           - "*"
     cooldown:
