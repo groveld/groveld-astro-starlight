@@ -15,10 +15,10 @@
     "@catppuccin/starlight": "^2.0.1",
     "astro": "^6.1.8",
     "sharp": "^0.34.2",
-    "tinacms": "^3.7.1"
+    "tinacms": "^3.7.2"
   },
   "devDependencies": {
-    "@tinacms/cli": "^2.2.1",
-    "@types/node": "^25.3.3"
+    "@tinacms/cli": "^2.2.2",
+    "@types/node": "^25.6.0"
   }
 }
