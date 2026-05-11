@@ -13,12 +13,12 @@
   "dependencies": {
     "@astrojs/starlight": "^0.38.4",
     "@catppuccin/starlight": "^2.0.1",
-    "astro": "^6.1.9",
+    "astro": "^6.2.1",
     "sharp": "^0.34.2",
-    "tinacms": "^3.7.4"
+    "tinacms": "^3.7.5"
   },
   "devDependencies": {
-    "@tinacms/cli": "^2.2.4",
+    "@tinacms/cli": "^2.2.5",
     "@types/node": "^25.6.0"
   }
 }
