@@ -11,14 +11,14 @@
     "tina": "tinacms dev -c \"astro dev\""
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.39.2",
+    "@astrojs/starlight": "^0.39.3",
     "@catppuccin/starlight": "^2.0.1",
-    "astro": "^6.4.2",
+    "astro": "^6.4.4",
     "sharp": "^0.34.2",
-    "tinacms": "^3.8.4"
+    "tinacms": "^3.9.1"
   },
   "devDependencies": {
-    "@tinacms/cli": "^2.4.2",
-    "@types/node": "^25.9.1"
+    "@tinacms/cli": "^2.4.4",
+    "@types/node": "^25.9.2"
   }
 }
